@@ -64,7 +64,7 @@ func TestDynamicBucketRegion(t *testing.T) {
 }
 
 func TestSessionWithCustomEndpoint(t *testing.T) {
-	os.Setenv("AWS_ENDPOINT", "foobar:1234")
+	os.Setenv("AWS_ENDPOINT", "http://foobar:1234")
 	os.Setenv("AWS_DISABLE_SSL", "true")
 	os.Setenv("HELM_S3_REGION", "us-west-2")
 
@@ -109,16 +109,34 @@ func TestDynamicBucketRegionDisabled(t *testing.T) {
 	os.Setenv("HELM_S3_DYNAMIC_REGION_ENABLED", "false")
 	defer os.Unsetenv("HELM_S3_DYNAMIC_REGION_ENABLED")
 
-	defaultSession, err := Session()
+	defaultCfg, err := Session()
 	require.NoError(t, err)
-	defaultRegion := aws.StringValue(defaultSession.Config.Region)
+	defaultRegion := defaultCfg.Region
 
-	actualSession, err := Session(DynamicBucketRegion("s3://cn-test-bucket"))
+	actualCfg, err := Session(DynamicBucketRegion("s3://cn-test-bucket"))
 	require.NoError(t, err)
 
-	assert.Equal(t, defaultRegion, aws.StringValue(actualSession.Config.Region))
+	assert.Equal(t, defaultRegion, actualCfg.Region)
 	assert.Zero(t, atomic.LoadInt32(&requestsReceived),
 		"expected no HTTP requests when dynamic region discovery is disabled")
+}
+
+func TestSessionWithInvalidEndpoint(t *testing.T) {
+	os.Setenv("AWS_ENDPOINT", "foobar:1234")
+	os.Setenv("AWS_DISABLE_SSL", "true")
+	os.Setenv("HELM_S3_REGION", "us-west-2")
+
+	_, err := Session()
+	if err == nil {
+		t.Fatalf("Expected error for endpoint without scheme, got nil")
+	}
+	if err.Error() != "endpoint must include a scheme (e.g., https://)" {
+		t.Fatalf("Expected 'endpoint must include a scheme' error, got: %v", err)
+	}
+
+	os.Unsetenv("AWS_ENDPOINT")
+	os.Unsetenv("AWS_DISABLE_SSL")
+	os.Unsetenv("HELM_S3_REGION")
 }
 
 // rewritingTransport routes every request to target, regardless of the
