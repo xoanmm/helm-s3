@@ -171,7 +171,7 @@ func Session(opts ...SessionOption) (aws.Config, error) {
 		if err != nil {
 			return aws.Config{}, fmt.Errorf("failed to parse endpoint %q: %w", endpoint, err)
 		}
-		if parsedURL.Scheme == "" {
+		if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
 			return aws.Config{}, errors.New("endpoint must include a scheme (e.g., https://)")
 		}
 		configOpts = append(configOpts, config.WithBaseEndpoint(endpoint))

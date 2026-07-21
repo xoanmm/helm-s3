@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"sync/atomic"
 	"testing"
 
@@ -27,12 +26,12 @@ func TestDynamicBucketRegion(t *testing.T) {
 	}{
 		{
 			caseDescription:      "existing S3 bucket URL with host only (no key) -> success",
-			expectedBucketRegion: "ap-southeast-2",
+			expectedBucketRegion: "eu-central-1",
 			inputS3URL:           "s3://cn-test-bucket",
 		},
 		{
 			caseDescription:      "existing S3 bucket URL with key -> success",
-			expectedBucketRegion: "ap-southeast-2",
+			expectedBucketRegion: "eu-central-1",
 			inputS3URL:           "s3://cn-test-bucket/charts/chart-0.1.2.tgz",
 		},
 		{
@@ -64,9 +63,9 @@ func TestDynamicBucketRegion(t *testing.T) {
 }
 
 func TestSessionWithCustomEndpoint(t *testing.T) {
-	os.Setenv("AWS_ENDPOINT", "http://foobar:1234")
-	os.Setenv("AWS_DISABLE_SSL", "true")
-	os.Setenv("HELM_S3_REGION", "us-west-2")
+	t.Setenv("AWS_ENDPOINT", "http://foobar:1234")
+	t.Setenv("AWS_DISABLE_SSL", "true")
+	t.Setenv("HELM_S3_REGION", "us-west-2")
 
 	cfg, err := Session()
 	if err != nil {
@@ -78,10 +77,6 @@ func TestSessionWithCustomEndpoint(t *testing.T) {
 	if cfg.Region != "us-west-2" {
 		t.Fatalf("Expected to set us-west-2 region, got %s", cfg.Region)
 	}
-
-	os.Unsetenv("AWS_ENDPOINT")
-	os.Unsetenv("AWS_DISABLE_SSL")
-	os.Unsetenv("HELM_S3_REGION")
 }
 
 func TestDynamicBucketRegionDisabled(t *testing.T) {
@@ -106,8 +101,7 @@ func TestDynamicBucketRegionDisabled(t *testing.T) {
 	http.DefaultTransport = &rewritingTransport{target: serverURL, base: origTransport}
 	defer func() { http.DefaultTransport = origTransport }()
 
-	os.Setenv("HELM_S3_DYNAMIC_REGION_ENABLED", "false")
-	defer os.Unsetenv("HELM_S3_DYNAMIC_REGION_ENABLED")
+	t.Setenv("HELM_S3_DYNAMIC_REGION_ENABLED", "false")
 
 	defaultCfg, err := Session()
 	require.NoError(t, err)
@@ -122,9 +116,9 @@ func TestDynamicBucketRegionDisabled(t *testing.T) {
 }
 
 func TestSessionWithInvalidEndpoint(t *testing.T) {
-	os.Setenv("AWS_ENDPOINT", "foobar:1234")
-	os.Setenv("AWS_DISABLE_SSL", "true")
-	os.Setenv("HELM_S3_REGION", "us-west-2")
+	t.Setenv("AWS_ENDPOINT", "foobar:1234")
+	t.Setenv("AWS_DISABLE_SSL", "true")
+	t.Setenv("HELM_S3_REGION", "us-west-2")
 
 	_, err := Session()
 	if err == nil {
@@ -133,10 +127,6 @@ func TestSessionWithInvalidEndpoint(t *testing.T) {
 	if err.Error() != "endpoint must include a scheme (e.g., https://)" {
 		t.Fatalf("Expected 'endpoint must include a scheme' error, got: %v", err)
 	}
-
-	os.Unsetenv("AWS_ENDPOINT")
-	os.Unsetenv("AWS_DISABLE_SSL")
-	os.Unsetenv("HELM_S3_REGION")
 }
 
 // rewritingTransport routes every request to target, regardless of the
