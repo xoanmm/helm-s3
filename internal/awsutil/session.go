@@ -122,7 +122,7 @@ func DynamicBucketRegion(s3URL string) SessionOption {
 		}
 
 		// Fallback to HeadBucket with header extraction if GetBucketLocation fails
-		_, err = s3Client.HeadBucket(ctx, &s3.HeadBucketInput{
+		_, _ = s3Client.HeadBucket(ctx, &s3.HeadBucketInput{
 			Bucket: aws.String(parsedS3URL.Host),
 		}, func(o *s3.Options) {
 			o.APIOptions = append(o.APIOptions, func(stack *middleware.Stack) error {
@@ -150,7 +150,7 @@ func DynamicBucketRegion(s3URL string) SessionOption {
 	}
 }
 
-// Session returns an AWS config as described in AWS SDK for Go v2 documentation
+// Session returns an AWS config as described in AWS SDK for Go v2 documentation.
 func Session(opts ...SessionOption) (aws.Config, error) {
 	ctx := context.Background()
 
@@ -199,7 +199,7 @@ func Session(opts ...SessionOption) (aws.Config, error) {
 		httpClient := &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true,
+					InsecureSkipVerify: true, //nolint:gosec // explicitly requested by AWS_DISABLE_SSL for local S3-compatible endpoints
 				},
 			},
 		}

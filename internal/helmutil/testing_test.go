@@ -29,13 +29,9 @@ func mockEnvs(t *testing.T, nameValue ...string) func() {
 	}
 
 	tearDowns := make([]func(), 0, len(nameValue)/2)
-	for i := 0; i < len(nameValue); i++ {
-		if i%2 == 1 {
-			continue
-		}
-
+	for i := 0; i < len(nameValue); i += 2 {
 		name := nameValue[i]
-		value := nameValue[i+1]
+		value := nameValue[i+1] //nolint:gosec // the even-length check above guarantees this index exists
 
 		old := os.Getenv(name)
 

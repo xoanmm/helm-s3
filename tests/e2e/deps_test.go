@@ -53,7 +53,7 @@ func TestHelmDependencyUpdate(t *testing.T) {
 		if path == barChartDirpath+"/charts" {
 			return nil
 		}
-		return os.RemoveAll(path)
+		return os.RemoveAll(path) //nolint:gosec // path is restricted to the test chart fixture directory
 	})
 	assert.NoError(t, err)
 
