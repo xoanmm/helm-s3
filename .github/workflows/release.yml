@@ -40,6 +40,9 @@ jobs:
 
   docker-images:
     name: Build Docker images
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/reusable-docker-images.yml
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
