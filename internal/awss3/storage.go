@@ -99,7 +99,7 @@ func withContentMD5() func(*s3.Options) {
 						return out, metadata, fmt.Errorf("restore request body after Content-MD5: %w", err)
 					}
 					req.ContentLength = int64(len(body))
-					sum := md5.Sum(body)
+					sum := md5.Sum(body) // #nosec G401 -- Content-MD5 is required by legacy S3-compatible servers.
 					req.Header.Set("Content-MD5", base64.StdEncoding.EncodeToString(sum[:]))
 					in.Request = req
 
