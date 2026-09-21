@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go/middleware"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 const (
@@ -91,11 +92,15 @@ func DynamicBucketRegion(s3URL string) SessionOption {
 		// Source:
 		// https://github.com/aws/aws-sdk-go/issues/720#issuecomment-243891223
 		ctx := context.Background()
-		cfg, err := config.LoadDefaultConfig(ctx,
+		configOpts := []func(*config.LoadOptions) error{
 			config.WithRegion("us-east-1"),
 			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("dummy", "dummy", "")),
 			config.WithBaseEndpoint("https://s3.amazonaws.com"),
-		)
+		}
+		if options.HTTPClient != nil {
+			configOpts = append(configOpts, config.WithHTTPClient(options.HTTPClient))
+		}
+		cfg, err := config.LoadDefaultConfig(ctx, configOpts...)
 		if err != nil {
 			return nil
 		}
@@ -129,7 +134,7 @@ func DynamicBucketRegion(s3URL string) SessionOption {
 						out, metadata, err = next.HandleDeserialize(ctx, in)
 
 						// Check if the response contains HTTP response
-						if httpResp, ok := out.RawResponse.(*http.Response); ok {
+						if httpResp, ok := out.RawResponse.(*smithyhttp.Response); ok {
 							if region := httpResp.Header.Get("X-Amz-Bucket-Region"); region != "" {
 								options.Region = region
 							}

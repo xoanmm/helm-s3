@@ -7,57 +7,98 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDynamicBucketRegion(t *testing.T) {
-	t.Parallel()
-
 	defaultConfig, err := Session()
 	require.NoError(t, err)
 	defaultRegion := defaultConfig.Region
 
 	testCases := []struct {
-		caseDescription      string
-		expectedBucketRegion string
+		name                 string
 		inputS3URL           string
+		expectedBucketRegion string
+		locationResponse     string
+		headRegion           string
 	}{
 		{
-			caseDescription:      "existing S3 bucket URL with host only (no key) -> success",
+			name:                 "bucket location is returned by S3",
+			inputS3URL:           "s3://test-bucket",
 			expectedBucketRegion: "eu-central-1",
-			inputS3URL:           "s3://cn-test-bucket",
+			locationResponse:     "eu-central-1",
 		},
 		{
-			caseDescription:      "existing S3 bucket URL with key -> success",
+			name:                 "bucket location works when the URL contains a key",
+			inputS3URL:           "s3://test-bucket/charts/chart-0.1.2.tgz",
 			expectedBucketRegion: "eu-central-1",
-			inputS3URL:           "s3://cn-test-bucket/charts/chart-0.1.2.tgz",
+			locationResponse:     "eu-central-1",
 		},
 		{
-			caseDescription:      "invalid URL -> failing URI parsing, no effect (default region)",
-			expectedBucketRegion: defaultRegion,
+			name:                 "head bucket header is used as fallback",
+			inputS3URL:           "s3://test-bucket",
+			expectedBucketRegion: "eu-west-1",
+			headRegion:           "eu-west-1",
+		},
+		{
+			name:                 "invalid URL does not change the default region",
 			inputS3URL:           "://not/a/URL",
+			expectedBucketRegion: defaultRegion,
 		},
 		{
-			caseDescription:      "invalid S3 URL -> failing request, no effect (default region)",
-			expectedBucketRegion: defaultRegion,
+			name:                 "empty URL does not change the default region",
 			inputS3URL:           "",
+			expectedBucketRegion: defaultRegion,
 		},
 		{
-			caseDescription:      "not existing S3 URL -> no region header, no effect (default region)",
+			name:                 "missing bucket region does not change the default region",
+			inputS3URL:           "s3://" + uuid.NewString(),
 			expectedBucketRegion: defaultRegion,
-			inputS3URL:           "s3://" + uuid.NewString(), // make it truly random, because constant non-existing bucket may eventually be created
 		},
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.caseDescription, func(t *testing.T) {
-			t.Parallel()
+		t.Run(tc.name, func(t *testing.T) {
+			var requests int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				atomic.AddInt32(&requests, 1)
+				if r.Method == http.MethodGet && r.URL.Query().Has("location") && tc.locationResponse != "" {
+					w.Header().Set("Content-Type", "application/xml")
+					w.WriteHeader(http.StatusOK)
+					_, _ = w.Write([]byte(`<LocationConstraint xmlns="http://s3.amazonaws.com/doc/2006-03-01/">` + tc.locationResponse + `</LocationConstraint>`))
+					return
+				}
+				if r.Method == http.MethodGet && r.URL.Query().Has("location") {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				if r.Method == http.MethodHead && tc.headRegion != "" {
+					w.Header().Set("X-Amz-Bucket-Region", tc.headRegion)
+				}
+				w.WriteHeader(http.StatusNotFound)
+			}))
+			defer server.Close()
 
-			actualConfig, err := Session(DynamicBucketRegion(tc.inputS3URL))
-			assert.NoError(t, err)
+			serverURL, err := url.Parse(server.URL)
+			require.NoError(t, err)
+			client := &http.Client{Transport: &rewritingTransport{
+				target: serverURL,
+				base:   http.DefaultTransport,
+			}}
+
+			actualConfig, err := Session(
+				withHTTPClient(client),
+				withRetryMaxAttempts(1),
+				DynamicBucketRegion(tc.inputS3URL),
+			)
+			require.NoError(t, err)
 			assert.Equal(t, tc.expectedBucketRegion, actualConfig.Region)
+			if tc.inputS3URL == "://not/a/URL" || tc.inputS3URL == "" {
+				assert.Zero(t, atomic.LoadInt32(&requests))
+			}
 		})
 	}
 }
@@ -80,12 +121,6 @@ func TestSessionWithCustomEndpoint(t *testing.T) {
 }
 
 func TestDynamicBucketRegionDisabled(t *testing.T) {
-	// Stand up an httptest.Server that counts every request it receives, and
-	// install a transport that rewrites every outbound request from the AWS
-	// SDK to that server. If DynamicBucketRegion respects the disable flag, the
-	// server's hit counter must remain at zero. (Without this interception, the
-	// test would also pass when the HEAD request was sent but failed for an
-	// unrelated reason like DNS or CI sandboxing.)
 	var requestsReceived int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&requestsReceived, 1)
@@ -96,10 +131,7 @@ func TestDynamicBucketRegionDisabled(t *testing.T) {
 
 	serverURL, err := url.Parse(server.URL)
 	require.NoError(t, err)
-
-	origTransport := http.DefaultTransport
-	http.DefaultTransport = &rewritingTransport{target: serverURL, base: origTransport}
-	defer func() { http.DefaultTransport = origTransport }()
+	client := &http.Client{Transport: &rewritingTransport{target: serverURL, base: http.DefaultTransport}}
 
 	t.Setenv("HELM_S3_DYNAMIC_REGION_ENABLED", "false")
 
@@ -107,7 +139,7 @@ func TestDynamicBucketRegionDisabled(t *testing.T) {
 	require.NoError(t, err)
 	defaultRegion := defaultCfg.Region
 
-	actualCfg, err := Session(DynamicBucketRegion("s3://cn-test-bucket"))
+	actualCfg, err := Session(withHTTPClient(client), DynamicBucketRegion("s3://test-bucket"))
 	require.NoError(t, err)
 
 	assert.Equal(t, defaultRegion, actualCfg.Region)
@@ -143,4 +175,16 @@ func (t *rewritingTransport) RoundTrip(req *http.Request) (*http.Response, error
 	req.URL.Host = t.target.Host
 	req.Host = t.target.Host
 	return t.base.RoundTrip(req)
+}
+
+func withHTTPClient(client *http.Client) SessionOption {
+	return func(options *config.LoadOptions) error {
+		return config.WithHTTPClient(client)(options)
+	}
+}
+
+func withRetryMaxAttempts(attempts int) SessionOption {
+	return func(options *config.LoadOptions) error {
+		return config.WithRetryMaxAttempts(attempts)(options)
+	}
 }
