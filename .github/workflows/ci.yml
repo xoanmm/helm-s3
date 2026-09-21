@@ -146,11 +146,17 @@ jobs:
 
           helm plugin install ${tmp_dir}/helm-s3
 
-      - name: Install minio client, prepare minio server
+      - name: Install MinIO client, prepare MinIO server
         run: |
-          curl -sSL https://dl.min.io/client/mc/release/linux-amd64/mc -o $(go env GOPATH)/bin/mc
-          chmod +x $(go env GOPATH)/bin/mc
-          mc alias set helm-s3-minio http://${AWS_ENDPOINT} ${AWS_ACCESS_KEY_ID} ${AWS_SECRET_ACCESS_KEY}
+          mc_version=RELEASE.2025-08-13T08-35-41Z
+          mc_path=$(go env GOPATH)/bin/mc
+          mc_url="https://github.com/minio/mc/releases/download/${mc_version}/mc.linux-amd64.${mc_version}"
+          mc_sha256=01f866e9c5f9b87c2b09116fa5d7c06695b106242d829a8bb32990c00312e891
+
+          curl --fail --location --silent --show-error "${mc_url}" -o "${mc_path}"
+          echo "${mc_sha256}  ${mc_path}" | sha256sum --check --status
+          chmod +x "${mc_path}"
+          mc alias set helm-s3-minio "http://${AWS_ENDPOINT}" "${AWS_ACCESS_KEY_ID}" "${AWS_SECRET_ACCESS_KEY}"
           mc mb helm-s3-minio/test-bucket
 
       - name: Run tests
