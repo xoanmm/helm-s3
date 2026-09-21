@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.17.3] - 2026-09-21
+
 ### Added
 
 - Add `HELM_S3_DYNAMIC_REGION_ENABLED` environment variable to disable dynamic
@@ -18,6 +20,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
 - Supported (and tested against) Helm versions updated to `3.20.2` and `3.21.0`.
+- Replaced the legacy AWS SDK for Go v1 with AWS SDK for Go v2.
+- Updated Go dependencies to address known security vulnerabilities.
+
+### Fixed
+
+- Fixed plugin installation tests for the fork repository URL.
+- Fixed Docker image publishing to use the fork's Docker Hub namespace.
 
 ## [0.17.2] - 2026-05-26
 
