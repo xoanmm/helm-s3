@@ -3,7 +3,7 @@ package awss3
 import (
 	"bytes"
 	"context"
-	"crypto/md5"
+	"crypto/md5" // #nosec G501 -- S3-compatible DeleteObjects requires Content-MD5.
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -99,7 +99,7 @@ func withContentMD5() func(*s3.Options) {
 						return out, metadata, fmt.Errorf("restore request body after Content-MD5: %w", err)
 					}
 					req.ContentLength = int64(len(body))
-					sum := md5.Sum(body) //nolint:gosec // S3-compatible DeleteObjects requires Content-MD5 for request integrity.
+					sum := md5.Sum(body)
 					req.Header.Set("Content-MD5", base64.StdEncoding.EncodeToString(sum[:]))
 					in.Request = req
 
