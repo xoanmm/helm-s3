@@ -10,7 +10,8 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
+	transfermanagertypes "github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
@@ -224,11 +225,12 @@ func (s *Storage) FetchRaw(ctx context.Context, uri string) ([]byte, error) {
 		return nil, err
 	}
 
-	buf := manager.NewWriteAtBuffer([]byte{})
-	downloader := manager.NewDownloader(s3.NewFromConfig(s.config, withPathStyle()))
-	_, err = downloader.Download(ctx, buf, &s3.GetObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(key),
+	buf := transfermanagertypes.NewWriteAtBuffer([]byte{})
+	transferManager := transfermanager.New(s3.NewFromConfig(s.config, withPathStyle()))
+	_, err = transferManager.DownloadObject(ctx, &transfermanager.DownloadObjectInput{
+		Bucket:   aws.String(bucket),
+		Key:      aws.String(key),
+		WriterAt: buf,
 	})
 	if err != nil {
 		// Check for specific S3 typed errors
@@ -302,10 +304,10 @@ func (s *Storage) PutChart(
 		return "", err
 	}
 
-	uploader := manager.NewUploader(s3.NewFromConfig(s.config, withPathStyle()))
+	transferManager := transfermanager.New(s3.NewFromConfig(s.config, withPathStyle()))
 
 	sse := getSSE()
-	uploadInput := &s3.PutObjectInput{
+	uploadInput := &transfermanager.UploadObjectInput{
 		Bucket:      aws.String(bucket),
 		Key:         aws.String(key),
 		ContentType: aws.String(contentType),
@@ -313,36 +315,36 @@ func (s *Storage) PutChart(
 		Metadata:    assembleObjectMetadata(chartMeta, chartDigest),
 	}
 	if acl != "" {
-		uploadInput.ACL = types.ObjectCannedACL(acl)
+		uploadInput.ACL = transfermanagertypes.ObjectCannedACL(acl)
 	}
 	if sse != "" {
-		uploadInput.ServerSideEncryption = sse
+		uploadInput.ServerSideEncryption = transfermanagertypes.ServerSideEncryption(sse)
 	}
 
-	result, err := uploader.Upload(ctx, uploadInput)
+	result, err := transferManager.UploadObject(ctx, uploadInput)
 	if err != nil {
 		return "", fmt.Errorf("upload chart object to s3: %w", err)
 	}
 
 	if prov {
-		provInput := &s3.PutObjectInput{
+		provInput := &transfermanager.UploadObjectInput{
 			Bucket: aws.String(bucket),
 			Key:    aws.String(key + ".prov"),
 			Body:   provReader,
 		}
 		if acl != "" {
-			provInput.ACL = types.ObjectCannedACL(acl)
+			provInput.ACL = transfermanagertypes.ObjectCannedACL(acl)
 		}
 		if sse != "" {
-			provInput.ServerSideEncryption = sse
+			provInput.ServerSideEncryption = transfermanagertypes.ServerSideEncryption(sse)
 		}
-		_, err := uploader.Upload(ctx, provInput)
+		_, err := transferManager.UploadObject(ctx, provInput)
 		if err != nil {
 			return "", fmt.Errorf("upload prov object to s3: %w", err)
 		}
 	}
 
-	return result.Location, nil
+	return aws.ToString(result.Location), nil
 }
 
 // PutIndex puts the index file to the storage.
@@ -357,20 +359,20 @@ func (s *Storage) PutIndex(ctx context.Context, uri string, acl string, r io.Rea
 	if err != nil {
 		return err
 	}
-	uploader := manager.NewUploader(s3.NewFromConfig(s.config, withPathStyle()))
+	transferManager := transfermanager.New(s3.NewFromConfig(s.config, withPathStyle()))
 	sse := getSSE()
-	uploadInput := &s3.PutObjectInput{
+	uploadInput := &transfermanager.UploadObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 		Body:   r,
 	}
 	if acl != "" {
-		uploadInput.ACL = types.ObjectCannedACL(acl)
+		uploadInput.ACL = transfermanagertypes.ObjectCannedACL(acl)
 	}
 	if sse != "" {
-		uploadInput.ServerSideEncryption = sse
+		uploadInput.ServerSideEncryption = transfermanagertypes.ServerSideEncryption(sse)
 	}
-	_, err = uploader.Upload(ctx, uploadInput)
+	_, err = transferManager.UploadObject(ctx, uploadInput)
 	if err != nil {
 		return errors.Wrap(err, "upload index to S3 bucket")
 	}
