@@ -22,7 +22,7 @@ jobs:
           - 3.20.2
           - 3.21.0
     env:
-      IMAGE_NAME: hypnoglow/helm-s3
+      IMAGE_NAME: ${{ github.repository_owner }}/helm-s3
       HELM_VERSION: ${{ matrix.helm }}
     steps:
 
@@ -73,7 +73,7 @@ jobs:
         uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6.1.0
         with:
           images: |
-            hypnoglow/helm-s3
+            ${{ env.IMAGE_NAME }}
           tags: |
             type=semver,pattern={{ version }},suffix=-helm${{ matrix.helm }}
             type=semver,pattern={{ version }},suffix=-helm${{ steps.vars.outputs.helm_version_minor }}

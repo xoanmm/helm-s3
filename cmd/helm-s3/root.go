@@ -25,7 +25,7 @@ Basic usage:
 
   $ helm s3 delete epicservice --version 0.7.2 mynewrepo
 
-For detailed documentation, see README at https://github.com/hypnoglow/helm-s3
+For detailed documentation, see README at https://github.com/xoanmm/helm-s3
 
 [ACL]
 
