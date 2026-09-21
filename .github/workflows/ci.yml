@@ -148,7 +148,7 @@ jobs:
 
       - name: Install minio client, prepare minio server
         run: |
-          curl -sSL https://dl.minio.io/client/mc/release/linux-amd64/mc -o $(go env GOPATH)/bin/mc
+          curl -sSL https://dl.min.io/client/mc/release/linux-amd64/mc -o $(go env GOPATH)/bin/mc
           chmod +x $(go env GOPATH)/bin/mc
           mc alias set helm-s3-minio http://${AWS_ENDPOINT} ${AWS_ACCESS_KEY_ID} ${AWS_SECRET_ACCESS_KEY}
           mc mb helm-s3-minio/test-bucket
