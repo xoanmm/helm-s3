@@ -9,7 +9,7 @@ You need to have [task](https://taskfile.dev/) utility to run development tasks.
 First of all, clone the repository to your machine.
 
 ```shell
-$ git clone https://github.com/hypnoglow/helm-s3.git
+$ git clone https://github.com/xoanmm/helm-s3.git
 $ cd helm-s3
 ```
 

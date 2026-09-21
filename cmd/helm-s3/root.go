@@ -25,7 +25,7 @@ Basic usage:
 
   $ helm s3 delete epicservice --version 0.7.2 mynewrepo
 
-For detailed documentation, see README at https://github.com/hypnoglow/helm-s3
+For detailed documentation, see README at https://github.com/xoanmm/helm-s3
 
 [ACL]
 
@@ -47,7 +47,8 @@ You can enable verbose output with '--verbose' flag.
 `
 
 func newRootCmd() *cobra.Command {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx := context.Background()
+	cancel := func() {}
 
 	opts := newDefaultOptions()
 
@@ -56,7 +57,7 @@ func newRootCmd() *cobra.Command {
 		Short: "Manage chart repositories on Amazon S3",
 		Long:  rootDesc,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			ctx, cancel = context.WithTimeout(cmd.Context(), opts.timeout)
+			ctx, cancel = context.WithTimeout(cmd.Context(), opts.timeout) //nolint:gosec // cancel is invoked by PersistentPostRun
 			cmd.SetContext(ctx)
 		},
 		PersistentPostRun: func(cmd *cobra.Command, args []string) {

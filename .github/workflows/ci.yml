@@ -48,7 +48,8 @@ jobs:
       - name: Run linters
         uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee # v9.2.1
         with:
-          version: v2.6.0
+          version: v2.13.2
+          install-mode: goinstall
           args: --verbose
 
       - name: Run ShellCheck
@@ -84,7 +85,7 @@ jobs:
         ports:
           - 9000:9000
     env:
-      AWS_ENDPOINT: localhost:9000
+      AWS_ENDPOINT: http://localhost:9000
       AWS_ACCESS_KEY_ID: EXAMPLEKEY123
       AWS_SECRET_ACCESS_KEY: EXAMPLESECRET123456
       AWS_DISABLE_SSL: true
@@ -146,11 +147,17 @@ jobs:
 
           helm plugin install ${tmp_dir}/helm-s3
 
-      - name: Install minio client, prepare minio server
+      - name: Install MinIO client, prepare MinIO server
         run: |
-          curl -sSL https://dl.minio.io/client/mc/release/linux-amd64/mc -o $(go env GOPATH)/bin/mc
-          chmod +x $(go env GOPATH)/bin/mc
-          mc alias set helm-s3-minio http://${AWS_ENDPOINT} ${AWS_ACCESS_KEY_ID} ${AWS_SECRET_ACCESS_KEY}
+          mc_version=RELEASE.2025-08-13T08-35-41Z
+          mc_path=$(go env GOPATH)/bin/mc
+          mc_url="https://github.com/minio/mc/releases/download/${mc_version}/mc.linux-amd64.${mc_version}"
+          mc_sha256=01f866e9c5f9b87c2b09116fa5d7c06695b106242d829a8bb32990c00312e891
+
+          curl --fail --location --silent --show-error "${mc_url}" -o "${mc_path}"
+          echo "${mc_sha256}  ${mc_path}" | sha256sum --check --status
+          chmod +x "${mc_path}"
+          mc alias set helm-s3-minio "${AWS_ENDPOINT}" "${AWS_ACCESS_KEY_ID}" "${AWS_SECRET_ACCESS_KEY}"
           mc mb helm-s3-minio/test-bucket
 
       - name: Run tests
@@ -172,6 +179,9 @@ jobs:
     name: Build Docker images
     needs:
       - test-e2e
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/reusable-docker-images.yml
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}

@@ -144,11 +144,11 @@ configure the plugin to work alternative S3 backend, just define `AWS_ENDPOINT`
 (and optionally `AWS_DISABLE_SSL` if you play with Minio locally):
 
 ```bash
-$ export AWS_ENDPOINT=localhost:9000
+$ export AWS_ENDPOINT=http://localhost:9000
 $ export AWS_DISABLE_SSL=true
 ```
 
-See [these integration tests](https://github.com/hypnoglow/helm-s3/blob/main/hack/test-e2e-local.sh)
+See [these integration tests](https://github.com/xoanmm/helm-s3/blob/main/hack/test-e2e-local.sh)
 that use local minio docker container for a complete example.
 
 ## Using S3 bucket ServerSide Encryption
@@ -162,7 +162,7 @@ The plugin will look for the bucket in the region inferred by the environment.
 This can be controlled by exporting one of `HELM_S3_REGION`, `AWS_REGION` or
 `AWS_DEFAULT_REGION`, in order of precedence.
 
-Since [v0.11.0](https://github.com/hypnoglow/helm-s3/blob/main/CHANGELOG.md#0110---2022-05-24)
+Since [v0.11.0](https://github.com/xoanmm/helm-s3/blob/main/CHANGELOG.md#0110---2022-05-24)
 the plugin supports dynamic S3 bucket region retrieval, so in most cases you
 don't need to provide the region. The plugin will detect it automatically and
 work without issues.

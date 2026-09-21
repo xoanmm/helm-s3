@@ -1,5 +1,5 @@
-ARG GO_VERSION=1.25.3
-ARG HELM_VERSION=3.21.0
+ARG GO_VERSION=1.27.1
+ARG HELM_VERSION=3.22.0
 
 FROM golang:${GO_VERSION}-alpine AS build
 
@@ -14,7 +14,6 @@ COPY . .
 RUN CGO_ENABLED=0 \
     go build  \
     -trimpath \
-    -mod=vendor \
     -ldflags "-X main.version=${PLUGIN_VERSION}" \
     -o bin/helm-s3 \
     ./cmd/helm-s3
@@ -35,7 +34,7 @@ LABEL org.label-schema.build-date=$BUILD_DATE \
       org.label-schema.name="helm-s3" \
       org.label-schema.description="The Helm plugin that provides S3 protocol support and allows to use AWS S3 as a chart repository." \
       org.label-schema.vcs-ref=$VCS_REF \
-      org.label-schema.vcs-url="https://github.com/hypnoglow/helm-s3" \
+      org.label-schema.vcs-url="https://github.com/xoanmm/helm-s3" \
       org.label-schema.version=$PLUGIN_VERSION \
       org.label-schema.schema-version="1.0"
 
