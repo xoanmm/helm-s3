@@ -3,6 +3,8 @@ package awss3
 import (
 	"bytes"
 	"context"
+	"crypto/md5" //nolint:gosec // S3-compatible DeleteObjects requires Content-MD5 for request integrity.
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/url"
@@ -15,6 +17,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
+	"github.com/aws/smithy-go/middleware"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"github.com/pkg/errors"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -67,6 +71,42 @@ func usePathStyle() bool {
 func withPathStyle() func(*s3.Options) {
 	return func(o *s3.Options) {
 		o.UsePathStyle = usePathStyle()
+	}
+}
+
+// withContentMD5 adds the legacy Content-MD5 header required by some S3-compatible
+// servers for DeleteObjects requests. AWS S3 accepts this header as well.
+func withContentMD5() func(*s3.Options) {
+	return func(o *s3.Options) {
+		o.APIOptions = append(o.APIOptions, func(stack *middleware.Stack) error {
+			return stack.Finalize.Add(middleware.FinalizeMiddlewareFunc(
+				"helm-s3:ContentMD5",
+				func(ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler) (
+					out middleware.FinalizeOutput, metadata middleware.Metadata, err error,
+				) {
+					req, ok := in.Request.(*smithyhttp.Request)
+					if !ok {
+						return out, metadata, fmt.Errorf("unexpected request type %T", in.Request)
+					}
+
+					body, err := io.ReadAll(req.GetStream())
+					if err != nil {
+						return out, metadata, fmt.Errorf("read request body for Content-MD5: %w", err)
+					}
+
+					req, err = req.SetStream(bytes.NewReader(body))
+					if err != nil {
+						return out, metadata, fmt.Errorf("restore request body after Content-MD5: %w", err)
+					}
+					req.ContentLength = int64(len(body))
+					sum := md5.Sum(body)
+					req.Header.Set("Content-MD5", base64.StdEncoding.EncodeToString(sum[:]))
+					in.Request = req
+
+					return next.HandleFinalize(ctx, in)
+				},
+			), middleware.Before)
+		})
 	}
 }
 
@@ -433,7 +473,7 @@ func (s *Storage) DeleteChart(ctx context.Context, uri string) error {
 				},
 			},
 		},
-	})
+	}, withContentMD5())
 	if err != nil {
 		return fmt.Errorf("delete chart object from s3: %w", err)
 	}
