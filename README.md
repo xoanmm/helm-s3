@@ -461,7 +461,7 @@ configure the plugin to work alternative S3 backend, just define `AWS_ENDPOINT`
 (and optionally `AWS_DISABLE_SSL` if you play with Minio locally):
 
 ```bash
-$ export AWS_ENDPOINT=localhost:9000
+$ export AWS_ENDPOINT=http://localhost:9000
 $ export AWS_DISABLE_SSL=true
 ```
 

@@ -85,7 +85,7 @@ jobs:
         ports:
           - 9000:9000
     env:
-      AWS_ENDPOINT: localhost:9000
+      AWS_ENDPOINT: http://localhost:9000
       AWS_ACCESS_KEY_ID: EXAMPLEKEY123
       AWS_SECRET_ACCESS_KEY: EXAMPLESECRET123456
       AWS_DISABLE_SSL: true
@@ -157,7 +157,7 @@ jobs:
           curl --fail --location --silent --show-error "${mc_url}" -o "${mc_path}"
           echo "${mc_sha256}  ${mc_path}" | sha256sum --check --status
           chmod +x "${mc_path}"
-          mc alias set helm-s3-minio "http://${AWS_ENDPOINT}" "${AWS_ACCESS_KEY_ID}" "${AWS_SECRET_ACCESS_KEY}"
+          mc alias set helm-s3-minio "${AWS_ENDPOINT}" "${AWS_ACCESS_KEY_ID}" "${AWS_SECRET_ACCESS_KEY}"
           mc mb helm-s3-minio/test-bucket
 
       - name: Run tests
