@@ -3,7 +3,6 @@
 name: CI
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
@@ -173,6 +172,9 @@ jobs:
     name: Build Docker images
     needs:
       - test-e2e
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/reusable-docker-images.yml
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
