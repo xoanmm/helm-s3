@@ -1,5 +1,6 @@
 ARG GO_VERSION=1.27.2
-ARG HELM_VERSION=3.22.0
+ARG HELM_BASE_VERSION=3.22.0
+ARG HELM_VERSION=3.22.1
 
 FROM golang:${GO_VERSION}-alpine AS build
 
@@ -24,7 +25,22 @@ RUN CGO_ENABLED=0 \
 RUN sed "/^hooks:/,+2 d" plugin.yaml > plugin.yaml.fixed \
     && sed -i "s/^version:.*$/version: ${PLUGIN_VERSION}/" plugin.yaml.fixed
 
-FROM alpine/helm:${HELM_VERSION}
+FROM alpine/helm:${HELM_BASE_VERSION}
+
+ARG HELM_VERSION
+
+RUN case "$(uname -m)" in \
+        x86_64) helm_arch=amd64 ;; \
+        armv7l) helm_arch=arm ;; \
+        aarch64) helm_arch=arm64 ;; \
+        ppc64le) helm_arch=ppc64le ;; \
+        s390x) helm_arch=s390x ;; \
+        *) echo "unsupported architecture: $(uname -m)"; exit 1 ;; \
+    esac \
+    && curl -fsSL "${BASE_URL}/helm-v${HELM_VERSION}-linux-${helm_arch}.tar.gz" | tar -xz \
+    && mv "linux-${helm_arch}/helm" /usr/bin/helm \
+    && chmod +x /usr/bin/helm \
+    && rm -r "linux-${helm_arch}"
 
 # Build-time metadata as defined at http://label-schema.org
 ARG BUILD_DATE

@@ -19,8 +19,7 @@ jobs:
       matrix:
         helm:
           - 2.17.0
-          - 3.20.2
-          - 3.21.0
+          - 3.22.1
     env:
       IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/helm-s3
       HELM_VERSION: ${{ matrix.helm }}
