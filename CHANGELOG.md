@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.17.4] - 2026-10-15
+
+### Security
+
+- Updated Go and its dependencies to address known vulnerabilities in
+  `golang.org/x/crypto` and `golang.org/x/net`.
+
 ## [0.17.3] - 2026-09-21
 
 ### Added
