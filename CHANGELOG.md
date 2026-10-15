@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Security
+
+- Updated Helm to `3.22.1`, which includes `golang.org/x/net` `v0.60.0`.
+
 ## [0.17.4] - 2026-10-15
 
 ### Security
